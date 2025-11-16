@@ -23,10 +23,7 @@ class ImageApp:
         self.create_widgets()
 
     def create_widgets(self):
-        # Set background color instead of overlay image
         self.root.configure(bg="#0d0d0d")
-
-        # Main layout using grid
         self.root.grid_rowconfigure(0, weight=1)
         self.root.grid_columnconfigure(0, weight=4)
         self.root.grid_columnconfigure(1, weight=1)
@@ -65,7 +62,6 @@ class ImageApp:
         btn_negative = ctk.CTkButton(top_buttons, text="Negative image", command=self.run_negative)
         btn_negative.pack(side=tk.LEFT)
 
-        # Tabview for organizing tools
         self.tabview = ctk.CTkTabview(right_panel, fg_color=("#0f0f0f", "#0f0f0f"))
         self.tabview.grid(row=1, column=0, sticky="nsew", padx=12, pady=(8, 8))
         
@@ -139,6 +135,13 @@ class ImageApp:
             command=lambda val: self.run_max_filter())
         self.sliders['n_max'] = max_sliders[0]
 
+        midpoint_sliders, midpoint_frame = self.create_transformation_section(
+            scroll_filter,
+            "Lọc Midpoint",
+            ['n_midpoint'],
+            command=lambda val: self.run_midpoint_filter())
+        self.sliders['n_midpoint'] = midpoint_sliders[0]
+
         bottom_bar = ctk.CTkFrame(right_panel, fg_color="transparent")
         bottom_bar.grid(row=3, column=0, sticky="ew", padx=12, pady=(8, 12))
         btn_apply = ctk.CTkButton(bottom_bar, text="Áp dụng", command=self.apply_changes, fg_color="#28a745", hover_color="#218838")
@@ -175,7 +178,7 @@ class ImageApp:
                 from_val, to_val, res = 1, 51, 1
             elif n == 'n_median':
                 from_val, to_val, res = 1, 30, 2
-            elif n in ['n_min', 'n_max']:
+            elif n in ['n_min', 'n_max', 'n_midpoint']:
                 from_val, to_val, res = 1, 30, 2
             elif n in ['l', 'sigma']:
                 from_val, to_val, res = 1, 20, 0.1
@@ -338,6 +341,16 @@ class ImageApp:
         except Exception as e:
             print(e)
 
+    def run_midpoint_filter(self):
+        if not self.original_image:
+            return
+        try:
+            n_val = int(self.sliders['n_midpoint'].get())
+            self.processed_image = ip.apply_midpoint_filter(self.original_image, n_val)
+            self.update_canvas_bottom(self.processed_image)
+        except Exception as e:
+            print(e)
+
     def apply_changes(self):
         if not self.processed_image:
             messagebox.showwarning("Cảnh báo", "Chưa có ảnh xử lý để áp dụng")
@@ -371,6 +384,8 @@ class ImageApp:
             self.sliders['n_min'].set(3)
         if 'n_max' in self.sliders:
             self.sliders['n_max'].set(3)
+        if 'n_midpoint' in self.sliders:
+            self.sliders['n_midpoint'].set(3)
                         
     def save_image(self):
         if not self.processed_image:

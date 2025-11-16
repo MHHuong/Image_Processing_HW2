@@ -96,32 +96,20 @@ def apply_gauss_filter(image, kernel):
     return Image.fromarray(img_blur, 'RGB')
 
 def apply_max_min_filter(image, n, filter_type='min'):
-    """
-    Lọc max hoặc lọc min với cửa sổ n×n (n lẻ: 3,5,7,...)
-    filter_type: 'min', 'max', hoặc 'maxmin'
-    Trả về: PIL.Image (có màu)
-    """
-    if n % 2 == 0:
-        raise ValueError("Kích thước n của cửa sổ phải là số lẻ (3,5,7,...)")
-
-    # Chuyển đổi input
     if isinstance(image, np.ndarray):
-        # Image từ GUI là BGR format của cv2
         img = image.astype(np.uint8)
         is_bgr = True
     else:
-        # PIL Image - chuyển sang RGB array
         img = np.array(image.convert('RGB'), dtype=np.uint8)
         is_bgr = False
     
-    h, w, c = img.shape  # c = số kênh màu (3 cho RGB/BGR)
-    s = n // 2  # bán kính cửa sổ
+    h, w, c = img.shape
+    s = n // 2
     
     if filter_type == 'maxmin':
         Imin = np.zeros((h, w, c), np.uint8)
         Imax = np.zeros((h, w, c), np.uint8)
         
-        # Xử lý từng kênh màu
         for channel in range(c):
             for i in range(s, h - s):
                 for j in range(s, w - s):
@@ -129,13 +117,11 @@ def apply_max_min_filter(image, n, filter_type='min'):
                     Imin[i, j, channel] = np.min(Area)
                     Imax[i, j, channel] = np.max(Area)
         
-        # Ảnh max-min (tăng biên)
         Imaxmin = Imax.astype(np.int16) - Imin.astype(np.int16)
         result = np.clip(Imaxmin, 0, 255).astype(np.uint8)
     else:
         result = np.zeros((h, w, c), np.uint8)
         
-        # Xử lý từng kênh màu
         for channel in range(c):
             for i in range(s, h - s):
                 for j in range(s, w - s):
@@ -145,8 +131,27 @@ def apply_max_min_filter(image, n, filter_type='min'):
                     elif filter_type == 'max':
                         result[i, j, channel] = np.max(Area)
     
-    # Trả về đúng format
     if is_bgr:
-        return result  # BGR format cho cv2
+        return result  
     else:
-        return Image.fromarray(result, mode='RGB')  # RGB format cho PIL
+        return Image.fromarray(result, mode='RGB')
+
+def apply_midpoint_filter(image, n):
+    if isinstance(image, np.ndarray):
+        img = image.copy()
+    else:
+        img = np.array(image, dtype=np.uint8)
+    
+    h, w, c = img.shape
+    s = n // 2
+    Imid = np.zeros((h, w, c), np.uint8)
+    
+    for channel in range(c):
+        for i in range(s, h - s):
+            for j in range(s, w - s):
+                Area = img[i-s:i+s+1, j-s:j+s+1, channel]
+                Imin = np.min(Area)
+                Imax = np.max(Area)
+                Imid[i, j, channel] = (Imin + Imax) / 2
+    
+    return Image.fromarray(Imid, mode='RGB') 
