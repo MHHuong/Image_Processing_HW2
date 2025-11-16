@@ -118,6 +118,13 @@ class ImageApp:
         self.sliders['l'] = gauss_sliders[0]
         self.sliders['sigma'] = gauss_sliders[1]
 
+        median_sliders, median_frame = self.create_transformation_section(
+            scroll_filter,
+            "Lọc trung vị",
+            ['n_median'],
+            command=lambda val: self.run_median_filter())
+        self.sliders['n_median'] = median_sliders[0]
+
         bottom_bar = ctk.CTkFrame(right_panel, fg_color="transparent")
         bottom_bar.grid(row=3, column=0, sticky="ew", padx=12, pady=(8, 12))
         btn_apply = ctk.CTkButton(bottom_bar, text="Áp dụng", command=self.apply_changes, fg_color="#28a745", hover_color="#218838")
@@ -152,6 +159,10 @@ class ImageApp:
                 from_val, to_val, res = 0, 255, 1
             elif n == 'n':
                 from_val, to_val, res = 1, 51, 1
+            elif n == 'n_median':
+                from_val, to_val, res = 1, 30, 2
+            elif n in ['l', 'sigma']:
+                from_val, to_val, res = 1, 20, 0.1
             elif n in ['l', 'sigma']:
                 from_val, to_val, res = 1, 20, 0.1
 
@@ -273,19 +284,29 @@ class ImageApp:
             self.update_canvas_bottom(self.processed_image)
         except Exception as e:
             print(e)
+
+    def run_median_filter(self):
+        if not self.original_image:
+            return
+        try:
+            n_val = int(self.sliders['n_median'].get())
+            img_cv = cv2.cvtColor(np.array(self.original_image), cv2.COLOR_RGB2BGR)
+            filtered = ip.apply_median_filter(img_cv, n_val)
+            filtered_rgb = cv2.cvtColor(filtered, cv2.COLOR_BGR2RGB)
+            self.processed_image = Image.fromarray(filtered_rgb)
+            self.update_canvas_bottom(self.processed_image)
+        except Exception as e:
+            print(e)
+
     def apply_changes(self):
-        """Apply processed image as new original image for further editing"""
         if not self.processed_image:
             messagebox.showwarning("Cảnh báo", "Chưa có ảnh xử lý để áp dụng")
             return
         
-        # Save processed image as new original
         self.original_image = self.processed_image.copy()
         
-        # Update top image display
         self.update_top_image(self.original_image)
         
-        # Reset sliders to default values
         if 'log_c' in self.sliders:
             self.sliders['log_c'].set(1)
         if 'log_logarit' in self.sliders:
@@ -304,7 +325,9 @@ class ImageApp:
             self.sliders['l'].set(3)
         if 'sigma' in self.sliders:
             self.sliders['sigma'].set(1)
-        
+        if 'n_median' in self.sliders:
+            self.sliders['n_median'].set(3)
+                
     def save_image(self):
         if not self.processed_image:
             return

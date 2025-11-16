@@ -54,9 +54,32 @@ def apply_avg_filter(image, n):
     imgC = np.array(cv2.merge((R, G, B)), dtype='uint8')
     return imgC
 
+def apply_median_filter(image, n):
+    if isinstance(image, np.ndarray):
+        img = image.astype(np.float64)
+        is_bgr = True
+    else:
+        img = np.array(image.convert('RGB'), dtype=np.float64)
+        is_bgr = False
+    
+    h, w, c = img.shape
+    out = np.zeros((h, w, c))
+    k = n // 2  
+    for channel in range(c):
+        channel_data = img[:, :, channel]
+        for i in range(k, h - k):
+            for j in range(k, w - k):
+                window = channel_data[i-k:i+k+1, j-k:j+k+1]
+                out[i, j, channel] = np.median(window)
+    out = np.clip(out, 0, 255).astype(np.uint8)
+    if is_bgr:
+        return out  
+    else:
+        return Image.fromarray(out, mode='RGB')  
+
 def gauss_kernel (l, sig):
     s = round((l - 1) / 2)
-    ax = np.linspace(-s, s, l)
+    ax = np.linspace(-s, s, 1)
     gauss = np.exp(-np.square(ax) / (2 * (sig **2)))
     kernel = np.outer(gauss, gauss)
     return kernel / np.sum(kernel)
