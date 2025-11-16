@@ -72,10 +72,10 @@ class ImageApp:
         tab_transform = self.tabview.add("Biến đổi")
         tab_filter = self.tabview.add("Filter")
         
-        scroll_transform = ctk.CTkScrollableFrame(tab_transform, fg_color="transparent", height=400)
+        scroll_transform = ctk.CTkScrollableFrame(tab_transform, fg_color="transparent", height=600)
         scroll_transform.pack(fill="x", padx=0, pady=0)
         
-        scroll_filter = ctk.CTkScrollableFrame(tab_filter, fg_color="transparent", height=400)
+        scroll_filter = ctk.CTkScrollableFrame(tab_filter, fg_color="transparent", height=600)
         scroll_filter.pack(fill="x", padx=0, pady=0)
 
         log_sliders, log_frame = self.create_transformation_section(
@@ -125,6 +125,20 @@ class ImageApp:
             command=lambda val: self.run_median_filter())
         self.sliders['n_median'] = median_sliders[0]
 
+        min_sliders, min_frame = self.create_transformation_section(
+            scroll_filter,
+            "Lọc Min",
+            ['n_min'],
+            command=lambda val: self.run_min_filter())
+        self.sliders['n_min'] = min_sliders[0]
+
+        max_sliders, max_frame = self.create_transformation_section(
+            scroll_filter,
+            "Lọc Max",
+            ['n_max'],
+            command=lambda val: self.run_max_filter())
+        self.sliders['n_max'] = max_sliders[0]
+
         bottom_bar = ctk.CTkFrame(right_panel, fg_color="transparent")
         bottom_bar.grid(row=3, column=0, sticky="ew", padx=12, pady=(8, 12))
         btn_apply = ctk.CTkButton(bottom_bar, text="Áp dụng", command=self.apply_changes, fg_color="#28a745", hover_color="#218838")
@@ -161,8 +175,8 @@ class ImageApp:
                 from_val, to_val, res = 1, 51, 1
             elif n == 'n_median':
                 from_val, to_val, res = 1, 30, 2
-            elif n in ['l', 'sigma']:
-                from_val, to_val, res = 1, 20, 0.1
+            elif n in ['n_min', 'n_max']:
+                from_val, to_val, res = 1, 30, 2
             elif n in ['l', 'sigma']:
                 from_val, to_val, res = 1, 20, 0.1
 
@@ -298,6 +312,32 @@ class ImageApp:
         except Exception as e:
             print(e)
 
+    def run_min_filter(self):
+        if not self.original_image:
+            return
+        try:
+            n_val = int(self.sliders['n_min'].get())
+            img_cv = cv2.cvtColor(np.array(self.original_image), cv2.COLOR_RGB2BGR)
+            filtered = ip.apply_max_min_filter(img_cv, n_val, filter_type='min')
+            filtered_rgb = cv2.cvtColor(filtered, cv2.COLOR_BGR2RGB)
+            self.processed_image = Image.fromarray(filtered_rgb)
+            self.update_canvas_bottom(self.processed_image)
+        except Exception as e:
+            print(e)
+
+    def run_max_filter(self):
+        if not self.original_image:
+            return
+        try:
+            n_val = int(self.sliders['n_max'].get())
+            img_cv = cv2.cvtColor(np.array(self.original_image), cv2.COLOR_RGB2BGR)
+            filtered = ip.apply_max_min_filter(img_cv, n_val, filter_type='max')
+            filtered_rgb = cv2.cvtColor(filtered, cv2.COLOR_BGR2RGB)
+            self.processed_image = Image.fromarray(filtered_rgb)
+            self.update_canvas_bottom(self.processed_image)
+        except Exception as e:
+            print(e)
+
     def apply_changes(self):
         if not self.processed_image:
             messagebox.showwarning("Cảnh báo", "Chưa có ảnh xử lý để áp dụng")
@@ -327,7 +367,11 @@ class ImageApp:
             self.sliders['sigma'].set(1)
         if 'n_median' in self.sliders:
             self.sliders['n_median'].set(3)
-                
+        if 'n_min' in self.sliders:
+            self.sliders['n_min'].set(3)
+        if 'n_max' in self.sliders:
+            self.sliders['n_max'].set(3)
+                        
     def save_image(self):
         if not self.processed_image:
             return

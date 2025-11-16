@@ -94,3 +94,59 @@ def apply_gauss_filter(image, kernel):
     img_blur = cv2.merge((R, G, B))
     img_blur = np.clip(img_blur, 0, 255).astype(np.uint8)
     return Image.fromarray(img_blur, 'RGB')
+
+def apply_max_min_filter(image, n, filter_type='min'):
+    """
+    Lọc max hoặc lọc min với cửa sổ n×n (n lẻ: 3,5,7,...)
+    filter_type: 'min', 'max', hoặc 'maxmin'
+    Trả về: PIL.Image (có màu)
+    """
+    if n % 2 == 0:
+        raise ValueError("Kích thước n của cửa sổ phải là số lẻ (3,5,7,...)")
+
+    # Chuyển đổi input
+    if isinstance(image, np.ndarray):
+        # Image từ GUI là BGR format của cv2
+        img = image.astype(np.uint8)
+        is_bgr = True
+    else:
+        # PIL Image - chuyển sang RGB array
+        img = np.array(image.convert('RGB'), dtype=np.uint8)
+        is_bgr = False
+    
+    h, w, c = img.shape  # c = số kênh màu (3 cho RGB/BGR)
+    s = n // 2  # bán kính cửa sổ
+    
+    if filter_type == 'maxmin':
+        Imin = np.zeros((h, w, c), np.uint8)
+        Imax = np.zeros((h, w, c), np.uint8)
+        
+        # Xử lý từng kênh màu
+        for channel in range(c):
+            for i in range(s, h - s):
+                for j in range(s, w - s):
+                    Area = img[i-s:i+s+1, j-s:j+s+1, channel]
+                    Imin[i, j, channel] = np.min(Area)
+                    Imax[i, j, channel] = np.max(Area)
+        
+        # Ảnh max-min (tăng biên)
+        Imaxmin = Imax.astype(np.int16) - Imin.astype(np.int16)
+        result = np.clip(Imaxmin, 0, 255).astype(np.uint8)
+    else:
+        result = np.zeros((h, w, c), np.uint8)
+        
+        # Xử lý từng kênh màu
+        for channel in range(c):
+            for i in range(s, h - s):
+                for j in range(s, w - s):
+                    Area = img[i-s:i+s+1, j-s:j+s+1, channel]
+                    if filter_type == 'min':
+                        result[i, j, channel] = np.min(Area)
+                    elif filter_type == 'max':
+                        result[i, j, channel] = np.max(Area)
+    
+    # Trả về đúng format
+    if is_bgr:
+        return result  # BGR format cho cv2
+    else:
+        return Image.fromarray(result, mode='RGB')  # RGB format cho PIL
