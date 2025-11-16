@@ -110,7 +110,7 @@ class ImageApp:
             scroll_filter,
             "Gauss filter",
             ['l', 'sigma'],
-            command=lambda val: self.run_avg_filter())
+            command=lambda val: self.run_gauss_filter())
         self.sliders['l'] = gauss_sliders[0]
         self.sliders['sigma'] = gauss_sliders[1]
 
@@ -180,8 +180,10 @@ class ImageApp:
                 from_val, to_val, res = 1, 30, 2
             elif n in ['n_min', 'n_max', 'n_midpoint']:
                 from_val, to_val, res = 1, 30, 2
-            elif n in ['l', 'sigma']:
-                from_val, to_val, res = 1, 20, 0.1
+            elif n == 'l':
+                from_val, to_val, res = 1, 21, 2
+            elif n == 'sigma':
+                from_val, to_val, res = 0.1, 10, 0.1
 
             value_label = ctk.CTkLabel(frame, text="0.0", width=50, font=("Segoe UI", 11))
             value_label.grid(row=row, column=2, sticky="e", padx=(4, 8))
@@ -298,6 +300,21 @@ class ImageApp:
             filtered = ip.apply_avg_filter(img_cv, n_val)
             filtered_rgb = cv2.cvtColor(filtered, cv2.COLOR_BGR2RGB)
             self.processed_image = Image.fromarray(filtered_rgb)
+            self.update_canvas_bottom(self.processed_image)
+        except Exception as e:
+            print(e)
+
+    def run_gauss_filter(self):
+        if not self.original_image:
+            return
+        try:
+            l_val = int(self.sliders['l'].get())
+            sigma_val = float(self.sliders['sigma'].get())
+            if l_val < 1:
+                l_val = 1
+            if l_val % 2 == 0:
+                l_val += 1
+            self.processed_image = ip.apply_gauss_filter(self.original_image, l_val, sigma_val)
             self.update_canvas_bottom(self.processed_image)
         except Exception as e:
             print(e)

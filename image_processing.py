@@ -79,12 +79,12 @@ def apply_median_filter(image, n):
 
 def gauss_kernel (l, sig):
     s = round((l - 1) / 2)
-    ax = np.linspace(-s, s, 1)
+    ax = np.linspace(-s, s, l)
     gauss = np.exp(-np.square(ax) / (2 * (sig **2)))
     kernel = np.outer(gauss, gauss)
     return kernel / np.sum(kernel)
 
-def apply_gauss_filter(image, kernel):
+def apply_gauss_filter(image, k_size, sigma):
     img = np.array(image.convert('RGB'), dtype=np.float64)
     k = gauss_kernel(k_size, sigma)
     r, g, b = cv2.split(img)
