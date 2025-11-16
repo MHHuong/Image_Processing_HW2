@@ -65,16 +65,21 @@ class ImageApp:
         btn_negative = ctk.CTkButton(top_buttons, text="Negative image", command=self.run_negative)
         btn_negative.pack(side=tk.LEFT)
 
-        lbl_tool_title = ctk.CTkLabel(right_panel, text="CÔNG CỤ BIẾN ĐỔI", font=("Segoe UI", 14, "bold"))
-        lbl_tool_title.grid(row=1, column=0, sticky="w", padx=12, pady=(12, 4))
-
-        # Scrollable frame for transformation sections
-        self.scrollable_frame = ctk.CTkScrollableFrame(right_panel, fg_color="transparent")
-        self.scrollable_frame.grid(row=2, column=0, sticky="nsew", padx=0, pady=0)
-        self.scrollable_frame.grid_columnconfigure(0, weight=1)
+        # Tabview for organizing tools
+        self.tabview = ctk.CTkTabview(right_panel, fg_color=("#0f0f0f", "#0f0f0f"))
+        self.tabview.grid(row=1, column=0, sticky="nsew", padx=12, pady=(8, 8))
+        
+        tab_transform = self.tabview.add("Biến đổi")
+        tab_filter = self.tabview.add("Filter")
+        
+        scroll_transform = ctk.CTkScrollableFrame(tab_transform, fg_color="transparent", height=400)
+        scroll_transform.pack(fill="x", padx=0, pady=0)
+        
+        scroll_filter = ctk.CTkScrollableFrame(tab_filter, fg_color="transparent", height=400)
+        scroll_filter.pack(fill="x", padx=0, pady=0)
 
         log_sliders, log_frame = self.create_transformation_section(
-            self.scrollable_frame,
+            scroll_transform,
             "Biến đổi Log",
             ['C', 'Logarit'],
             command=lambda val: self.on_log_params_change()
@@ -83,7 +88,7 @@ class ImageApp:
         self.sliders['log_logarit'] = log_sliders[1]
 
         piecewise_sliders, piece_frame = self.create_transformation_section(
-            self.scrollable_frame, "Biến đổi Piecewise-Linear",
+            scroll_transform, "Biến đổi Piecewise-Linear",
             ['Cao', 'Thấp'],
             command=lambda val: self.on_piecewise_params_change()
         )
@@ -91,7 +96,7 @@ class ImageApp:
         self.sliders['piece_low'] = piecewise_sliders[1]
 
         gamma_sliders, gamma_frame = self.create_transformation_section(
-            self.scrollable_frame,
+            scroll_transform,
             "Biến đổi Gamma",
             ['C', 'Gamma'],
             command=lambda val: self.run_gamma_transform())
@@ -99,14 +104,14 @@ class ImageApp:
         self.sliders['gamma_gamma'] = gamma_sliders[1]
 
         matrix_sliders, matrix_frame = self.create_transformation_section(
-            self.scrollable_frame,
+            scroll_filter,
             "Avg filter",
             ['n'],
             command=lambda val: self.run_avg_filter())
         self.sliders['n'] = matrix_sliders[0]
 
         gauss_sliders, gauss_frame = self.create_transformation_section(
-            self.scrollable_frame,
+            scroll_filter,
             "Gauss filter",
             ['l', 'sigma'],
             command=lambda val: self.run_avg_filter())
@@ -115,6 +120,8 @@ class ImageApp:
 
         bottom_bar = ctk.CTkFrame(right_panel, fg_color="transparent")
         bottom_bar.grid(row=3, column=0, sticky="ew", padx=12, pady=(8, 12))
+        btn_apply = ctk.CTkButton(bottom_bar, text="Áp dụng", command=self.apply_changes, fg_color="#28a745", hover_color="#218838")
+        btn_apply.pack(side=tk.LEFT, padx=(0, 8))
         btn_save = ctk.CTkButton(bottom_bar, text="Lưu ra file", command=self.save_image)
         btn_save.pack(side=tk.LEFT, padx=(0, 8))
         btn_close = ctk.CTkButton(bottom_bar, text="Đóng", command=self.root.destroy)
@@ -266,6 +273,38 @@ class ImageApp:
             self.update_canvas_bottom(self.processed_image)
         except Exception as e:
             print(e)
+    def apply_changes(self):
+        """Apply processed image as new original image for further editing"""
+        if not self.processed_image:
+            messagebox.showwarning("Cảnh báo", "Chưa có ảnh xử lý để áp dụng")
+            return
+        
+        # Save processed image as new original
+        self.original_image = self.processed_image.copy()
+        
+        # Update top image display
+        self.update_top_image(self.original_image)
+        
+        # Reset sliders to default values
+        if 'log_c' in self.sliders:
+            self.sliders['log_c'].set(1)
+        if 'log_logarit' in self.sliders:
+            self.sliders['log_logarit'].set(2)
+        if 'gamma_c' in self.sliders:
+            self.sliders['gamma_c'].set(1)
+        if 'gamma_gamma' in self.sliders:
+            self.sliders['gamma_gamma'].set(1)
+        if 'piece_low' in self.sliders:
+            self.sliders['piece_low'].set(50)
+        if 'piece_high' in self.sliders:
+            self.sliders['piece_high'].set(200)
+        if 'n' in self.sliders:
+            self.sliders['n'].set(3)
+        if 'l' in self.sliders:
+            self.sliders['l'].set(3)
+        if 'sigma' in self.sliders:
+            self.sliders['sigma'].set(1)
+        
     def save_image(self):
         if not self.processed_image:
             return

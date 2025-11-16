@@ -56,9 +56,18 @@ def apply_avg_filter(image, n):
 
 def gauss_kernel (l, sig):
     s = round((l - 1) / 2)
-    ax = np.linspace(-s, s, 1)
+    ax = np.linspace(-s, s, l)
     gauss = np.exp(-np.square(ax) / (2 * (sig **2)))
     kernel = np.outer(gauss, gauss)
     return kernel / np.sum(kernel)
 
-# def apply_gauss_filter(image, kernel):
+def apply_gauss_filter(image, kernel):
+    img = np.array(image.convert('RGB'), dtype=np.float64)
+    k = gauss_kernel(k_size, sigma)
+    r, g, b = cv2.split(img)
+    R = conv(r, k, 1)
+    G = conv(g, k, 1)
+    B = conv(b, k, 1)
+    img_blur = cv2.merge((R, G, B))
+    img_blur = np.clip(img_blur, 0, 255).astype(np.uint8)
+    return Image.fromarray(img_blur, 'RGB')
