@@ -1,7 +1,8 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox
-from PIL import Image, ImageTk, ImageFilter, ImageEnhance
+from PIL import Image
 import customtkinter as ctk
+from customtkinter import CTkComboBox
 import image_processing as ip
 import numpy as np
 import cv2
@@ -18,6 +19,7 @@ class ImageApp:
         self.ctkimg_top = None
         self.ctkimg_bottom = None
         self.sliders = {}
+        self.frequency_filter_type = None
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("dark-blue")
         self.create_widgets()
@@ -67,12 +69,16 @@ class ImageApp:
         
         tab_transform = self.tabview.add("Biến đổi")
         tab_filter = self.tabview.add("Filter")
-        
+        tab_frequency = self.tabview.add("Frequency")
+
         scroll_transform = ctk.CTkScrollableFrame(tab_transform, fg_color="transparent", height=600)
         scroll_transform.pack(fill="x", padx=0, pady=0)
         
         scroll_filter = ctk.CTkScrollableFrame(tab_filter, fg_color="transparent", height=600)
         scroll_filter.pack(fill="x", padx=0, pady=0)
+        
+        scroll_frequency = ctk.CTkScrollableFrame(tab_frequency, fg_color="transparent", height=600)
+        scroll_frequency.pack(fill="x", padx=0, pady=0)
 
         log_sliders, log_frame = self.create_transformation_section(
             scroll_transform,
@@ -106,13 +112,28 @@ class ImageApp:
             command=lambda val: self.run_avg_filter())
         self.sliders['n'] = matrix_sliders[0]
 
-        gauss_sliders, gauss_frame = self.create_transformation_section(
+        gauss_sliders, gauss_frame, gauss_labels = self.create_transformation_section(
             scroll_filter,
             "Gauss filter",
             ['l', 'sigma'],
-            command=lambda val: self.run_gauss_filter())
+            command=None,
+            return_labels=True)
         self.sliders['l'] = gauss_sliders[0]
         self.sliders['sigma'] = gauss_sliders[1]
+        self.gauss_l_label = gauss_labels[0]
+        self.gauss_sigma_label = gauss_labels[1]
+        
+        # Tạo callback kết hợp update label và logic
+        def on_l_change(val):
+            self.gauss_l_label.configure(text=f"{int(float(val))}")
+            self.on_gauss_kernel_change(val)
+        
+        def on_sigma_change(val):
+            self.gauss_sigma_label.configure(text=f"{float(val):.2f}")
+            self.on_gauss_sigma_change(val)
+        
+        self.sliders['l'].configure(command=on_l_change)
+        self.sliders['sigma'].configure(command=on_sigma_change)
 
         median_sliders, median_frame = self.create_transformation_section(
             scroll_filter,
@@ -142,6 +163,67 @@ class ImageApp:
             command=lambda val: self.run_midpoint_filter())
         self.sliders['n_midpoint'] = midpoint_sliders[0]
 
+        freq_frame = ctk.CTkFrame(scroll_frequency, fg_color=("#151515", "#151515"))
+        freq_frame.pack(fill="x", padx=12, pady=8)
+        freq_frame.grid_columnconfigure(1, weight=1)
+        
+        lbl_freq_title = ctk.CTkLabel(freq_frame, text="Frequency Domain Filters", font=("Segoe UI", 12, "bold"))
+        lbl_freq_title.grid(row=0, column=0, columnspan=3, sticky="w", pady=(8, 6), padx=8)
+        
+        lbl_filter_type = ctk.CTkLabel(freq_frame, text="Loại Filter")
+        lbl_filter_type.grid(row=1, column=0, sticky="w", padx=8, pady=6)
+        
+        self.frequency_filter_type = CTkComboBox(
+            freq_frame,
+            values=["ILPF", "IHPF", "BLPF", "BHPF", "GLPF", "GHPF"],
+            command=self.on_frequency_filter_change
+        )
+        self.frequency_filter_type.grid(row=1, column=1, columnspan=2, sticky="ew", padx=8, pady=6)
+        self.frequency_filter_type.set("ILPF")
+        
+        lbl_d0 = ctk.CTkLabel(freq_frame, text="D0 (Cutoff)")
+        lbl_d0.grid(row=2, column=0, sticky="w", padx=8)
+        
+        self.freq_d0_label = ctk.CTkLabel(freq_frame, text="30", width=50, font=("Segoe UI", 11))
+        self.freq_d0_label.grid(row=2, column=2, sticky="e", padx=(4, 8))
+        
+        self.sliders['freq_d0'] = ctk.CTkSlider(
+            freq_frame,
+            from_=1,
+            to=200,
+            number_of_steps=199,
+            command=self.on_freq_d0_change,
+            fg_color="#FFFFFF",
+            progress_color="#FFFFFF",
+            button_color="#FFFFFF",
+            button_hover_color="#EDEDED"
+        )
+        self.sliders['freq_d0'].set(30)
+        self.sliders['freq_d0'].grid(row=2, column=1, sticky="ew", padx=8, pady=6)
+        
+        lbl_n = ctk.CTkLabel(freq_frame, text="n (Order)")
+        lbl_n.grid(row=3, column=0, sticky="w", padx=8)
+        
+        self.freq_n_label = ctk.CTkLabel(freq_frame, text="2", width=50, font=("Segoe UI", 11))
+        self.freq_n_label.grid(row=3, column=2, sticky="e", padx=(4, 8))
+        
+        self.sliders['freq_n'] = ctk.CTkSlider(
+            freq_frame,
+            from_=1,
+            to=10,
+            number_of_steps=9,
+            command=self.on_freq_n_change,
+            fg_color="#FFFFFF",
+            progress_color="#FFFFFF",
+            button_color="#FFFFFF",
+            button_hover_color="#EDEDED"
+        )
+        self.sliders['freq_n'].set(2)
+        self.sliders['freq_n'].grid(row=3, column=1, sticky="ew", padx=8, pady=6)
+        
+        self.lbl_n = lbl_n
+        self.on_frequency_filter_change("ILPF")
+
         bottom_bar = ctk.CTkFrame(right_panel, fg_color="transparent")
         bottom_bar.grid(row=3, column=0, sticky="ew", padx=12, pady=(8, 12))
         btn_apply = ctk.CTkButton(bottom_bar, text="Áp dụng", command=self.apply_changes, fg_color="#28a745", hover_color="#218838")
@@ -151,7 +233,7 @@ class ImageApp:
         btn_close = ctk.CTkButton(bottom_bar, text="Đóng", command=self.root.destroy)
         btn_close.pack(side=tk.LEFT)
 
-    def create_transformation_section(self, parent, title, param_names, command=None):
+    def create_transformation_section(self, parent, title, param_names, command=None, return_labels=False):
         frame = ctk.CTkFrame(parent, fg_color=("#151515", "#151515"))
         frame.pack(fill="x", padx=12, pady=8)
         frame.grid_columnconfigure(1, weight=1)
@@ -161,6 +243,7 @@ class ImageApp:
         lbl_title.grid(row=0, column=0, columnspan=3, sticky="w", pady=(8, 6))
 
         sliders = []
+        value_labels = []
         row = 1
         for name in param_names:
             lbl_param = ctk.CTkLabel(frame, text=f"Hệ số {name}")
@@ -187,6 +270,7 @@ class ImageApp:
 
             value_label = ctk.CTkLabel(frame, text="0.0", width=50, font=("Segoe UI", 11))
             value_label.grid(row=row, column=2, sticky="e", padx=(4, 8))
+            value_labels.append(value_label)
 
             def make_slider_command(val_lbl, orig_cmd, resolution):
                 def wrapper(value):
@@ -226,6 +310,8 @@ class ImageApp:
             sliders.append(slider)
             row += 1
 
+        if return_labels:
+            return sliders, frame, value_labels
         return sliders, frame
 
     def create_smoothing_section(self, parent, title, num_sliders, colors):
@@ -296,13 +382,42 @@ class ImageApp:
             n_val = int(self.sliders['n'].get())
             if n_val < 1:
                 n_val = 1
-            img_cv = cv2.cvtColor(np.array(self.original_image), cv2.COLOR_RGB2BGR)
-            filtered = ip.apply_avg_filter(img_cv, n_val)
-            filtered_rgb = cv2.cvtColor(filtered, cv2.COLOR_BGR2RGB)
-            self.processed_image = Image.fromarray(filtered_rgb)
+            self.processed_image = ip.apply_avg_filter(self.original_image, n_val)
             self.update_canvas_bottom(self.processed_image)
         except Exception as e:
             print(e)
+
+    def on_gauss_kernel_change(self, value):
+        try:
+            l_val = int(float(value))
+            if l_val < 1:
+                l_val = 1
+            if l_val % 2 == 0:
+                l_val += 1
+            
+            sigma_max = max(1.0, (l_val - 1) / 2.0)
+            
+            sigma_slider = self.sliders['sigma']
+            current_sigma = sigma_slider.get()
+            
+            sigma_slider.configure(
+                to=sigma_max,
+                number_of_steps=max(1, int((sigma_max - 0.1) / 0.1))
+            )
+            
+            if current_sigma > sigma_max:
+                new_sigma = sigma_max * 0.5
+                sigma_slider.set(new_sigma)
+                self.gauss_sigma_label.configure(text=f"{new_sigma:.2f}")
+            
+            if self.original_image:
+                self.run_gauss_filter()
+        except Exception as e:
+            print(e)
+    
+    def on_gauss_sigma_change(self, value):
+        if self.original_image:
+            self.run_gauss_filter()
 
     def run_gauss_filter(self):
         if not self.original_image:
@@ -403,6 +518,10 @@ class ImageApp:
             self.sliders['n_max'].set(3)
         if 'n_midpoint' in self.sliders:
             self.sliders['n_midpoint'].set(3)
+        if 'freq_d0' in self.sliders:
+            self.sliders['freq_d0'].set(30)
+        if 'freq_n' in self.sliders:
+            self.sliders['freq_n'].set(2)
                         
     def save_image(self):
         if not self.processed_image:
@@ -483,6 +602,71 @@ class ImageApp:
         img.thumbnail((w, h))
         self.ctkimg_top = ctk.CTkImage(light_image=img, dark_image=img, size=img.size)
         self.img_top_label.configure(image=self.ctkimg_top, text="")
+
+    def on_frequency_filter_change(self, choice):
+        if choice in ['BLPF', 'BHPF']:
+            self.lbl_n.grid()
+            self.sliders['freq_n'].grid()
+            self.freq_n_label.grid()
+        else:
+            self.lbl_n.grid_remove()
+            self.sliders['freq_n'].grid_remove()
+            self.freq_n_label.grid_remove()
+        self.run_frequency_filter()
+
+    def on_freq_d0_change(self, value):
+        self.freq_d0_label.configure(text=f"{int(float(value))}")
+        self.run_frequency_filter()
+
+    def on_freq_n_change(self, value):
+        self.freq_n_label.configure(text=f"{int(float(value))}")
+        self.run_frequency_filter()
+
+    def run_frequency_filter(self):
+        if not self.original_image:
+            return
+        try:
+            filter_type = self.frequency_filter_type.get()
+            D0 = int(self.sliders['freq_d0'].get())
+            n = int(self.sliders['freq_n'].get())
+            
+            img_rgb = np.array(self.original_image.convert('RGB'), dtype=np.float32)
+            
+            filter_map = {
+                'ILPF': ip.apply_ILPF,
+                'IHPF': ip.apply_IHPF,
+                'BLPF': ip.apply_BLPF,
+                'BHPF': ip.apply_BHPF,
+                'GLPF': ip.apply_GLPF,
+                'GHPF': ip.apply_GHPF
+            }
+            
+            H_filter_func = filter_map[filter_type]
+            
+            # Xử lý từng kênh màu riêng biệt
+            filtered_channels = []
+            for channel in range(3):  # R, G, B
+                img_channel = img_rgb[:, :, channel]
+                
+                # Áp dụng frequency filter
+                if filter_type in ['BLPF', 'BHPF']:
+                    filtered_channel = ip.apply_frequency_filter(img_channel, H_filter_func, D0, n)
+                else:
+                    filtered_channel = ip.apply_frequency_filter(img_channel, H_filter_func, D0)
+                
+                filtered_channels.append(filtered_channel)
+            
+            # Ghép các kênh lại thành ảnh RGB
+            filtered_rgb = np.stack(filtered_channels, axis=2).astype(np.uint8)
+            
+            # Chuyển về PIL Image
+            self.processed_image = Image.fromarray(filtered_rgb, 'RGB')
+            self.update_canvas_bottom(self.processed_image)
+            
+        except Exception as e:
+            print(f"Lỗi frequency filter: {e}")
+            import traceback
+            traceback.print_exc()
 
 
 if __name__ == "__main__":
