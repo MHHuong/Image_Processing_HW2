@@ -1,7 +1,7 @@
 import cv2
 from PIL import Image, ImageOps, ImageFilter
 import numpy as np
-
+import time
 def apply_negative(image):
     np_img = np.array(image)
     np_negative = 255 - np_img
@@ -171,13 +171,18 @@ def create_D_matrix(rows, cols):
     D = np.sqrt((U - center_row)**2 + (V - center_col)**2)
     return D
 
-def apply_frequency_filter(img_gray, H_filter_func, D0, n=None):
+def apply_frequency_filter(img_gray, H_filter_func, D0, n=None, return_timing=False):
+    
     rows, cols = img_gray.shape
     
-    import cv2 as cv
+    # Đo thời gian chuyển sang miền tần số
+    t_start_fft = time.time()
     dft = cv.dft(np.float32(img_gray), flags=cv.DFT_COMPLEX_OUTPUT)
     dft_shift = np.fft.fftshift(dft)
+    t_fft = time.time() - t_start_fft
     
+    # Đo thời gian xử lý filter
+    t_start_filter = time.time()
     if n is None:
         H = H_filter_func(rows, cols, D0)
     else:
@@ -188,11 +193,25 @@ def apply_frequency_filter(img_gray, H_filter_func, D0, n=None):
     H_complex[:,:,1] = H
     
     G_shift = dft_shift * H_complex
+    t_filter = time.time() - t_start_filter
+    
+    # Đo thời gian chuyển về miền không gian
+    t_start_ifft = time.time()
     G_ishift = np.fft.ifftshift(G_shift)
     img_back = cv.idft(G_ishift)
     img_back = cv.magnitude(img_back[:,:,0], img_back[:,:,1])
     cv.normalize(img_back, img_back, 0, 255, cv.NORM_MINMAX)
     img_out = np.uint8(img_back)
+    t_ifft = time.time() - t_start_ifft
+    
+    if return_timing:
+        timing_info = {
+            'fft_time': t_fft,
+            'filter_time': t_filter,
+            'ifft_time': t_ifft,
+            'total_time': t_fft + t_filter + t_ifft
+        }
+        return img_out, timing_info
     
     return img_out
 

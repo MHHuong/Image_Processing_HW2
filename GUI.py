@@ -123,7 +123,6 @@ class ImageApp:
         self.gauss_l_label = gauss_labels[0]
         self.gauss_sigma_label = gauss_labels[1]
         
-        # Tạo callback kết hợp update label và logic
         def on_l_change(val):
             self.gauss_l_label.configure(text=f"{int(float(val))}")
             self.on_gauss_kernel_change(val)
@@ -221,6 +220,21 @@ class ImageApp:
         self.sliders['freq_n'].set(2)
         self.sliders['freq_n'].grid(row=3, column=1, sticky="ew", padx=8, pady=6)
         
+        # Timing info display
+        timing_frame = ctk.CTkFrame(freq_frame, fg_color=("#1a1a1a", "#1a1a1a"))
+        timing_frame.grid(row=4, column=0, columnspan=3, sticky="ew", padx=8, pady=(12, 8))
+        
+        lbl_timing_title = ctk.CTkLabel(timing_frame, text="Thời gian xử lý:", font=("Segoe UI", 11, "bold"))
+        lbl_timing_title.pack(anchor="w", padx=8, pady=(8, 4))
+        
+        self.freq_timing_label = ctk.CTkLabel(
+            timing_frame, 
+            text="Chưa có dữ liệu",
+            font=("Consolas", 10),
+            justify="left"
+        )
+        self.freq_timing_label.pack(anchor="w", padx=8, pady=(0, 8))
+        
         self.lbl_n = lbl_n
         self.on_frequency_filter_change("ILPF")
 
@@ -264,7 +278,7 @@ class ImageApp:
             elif n in ['n_min', 'n_max', 'n_midpoint']:
                 from_val, to_val, res = 1, 30, 2
             elif n == 'l':
-                from_val, to_val, res = 1, 21, 2
+                from_val, to_val, res = 1, 21, 1
             elif n == 'sigma':
                 from_val, to_val, res = 0.1, 10, 0.1
 
@@ -626,6 +640,7 @@ class ImageApp:
         if not self.original_image:
             return
         try:
+            import time
             filter_type = self.frequency_filter_type.get()
             D0 = int(self.sliders['freq_d0'].get())
             n = int(self.sliders['freq_n'].get())
@@ -643,23 +658,39 @@ class ImageApp:
             
             H_filter_func = filter_map[filter_type]
             
-            # Xử lý từng kênh màu riêng biệt
+            # Thu thập timing từ 3 kênh
+            total_fft_time = 0
+            total_filter_time = 0
+            total_ifft_time = 0
+            total_time = 0
+            
+            t_start_total = time.time()
             filtered_channels = []
-            for channel in range(3):  # R, G, B
+            for channel in range(3):
                 img_channel = img_rgb[:, :, channel]
-                
-                # Áp dụng frequency filter
                 if filter_type in ['BLPF', 'BHPF']:
-                    filtered_channel = ip.apply_frequency_filter(img_channel, H_filter_func, D0, n)
+                    filtered_channel, timing = ip.apply_frequency_filter(img_channel, H_filter_func, D0, n, return_timing=True)
                 else:
-                    filtered_channel = ip.apply_frequency_filter(img_channel, H_filter_func, D0)
+                    filtered_channel, timing = ip.apply_frequency_filter(img_channel, H_filter_func, D0, return_timing=True)
+                
+                total_fft_time += timing['fft_time']
+                total_filter_time += timing['filter_time']
+                total_ifft_time += timing['ifft_time']
                 
                 filtered_channels.append(filtered_channel)
             
-            # Ghép các kênh lại thành ảnh RGB
             filtered_rgb = np.stack(filtered_channels, axis=2).astype(np.uint8)
+            total_time = time.time() - t_start_total
             
-            # Chuyển về PIL Image
+            # Hiển thị timing info
+            timing_text = (
+                f"FFT (không gian → tần số): {total_fft_time*1000:.2f} ms\n"
+                f"Xử lý filter:              {total_filter_time*1000:.2f} ms\n"
+                f"IFFT (tần số → không gian): {total_ifft_time*1000:.2f} ms\n"
+                f"Tổng thời gian:            {total_time*1000:.2f} ms"
+            )
+            self.freq_timing_label.configure(text=timing_text)
+            
             self.processed_image = Image.fromarray(filtered_rgb, 'RGB')
             self.update_canvas_bottom(self.processed_image)
             
