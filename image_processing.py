@@ -90,7 +90,10 @@ def apply_median_filter(image, n):
     else:
         return Image.fromarray(out, 'RGB')  
 
-def apply_gauss_filter(image, n, sigma):
+def apply_gauss_filter(image, n, sigma, return_timing=False):
+    import time
+    
+    t_start = time.time()
     k = np.zeros((n, n))
     mid = n // 2
     for i in range(n):
@@ -110,6 +113,11 @@ def apply_gauss_filter(image, n, sigma):
     imgC = Image.merge('RGB', (Image.fromarray(R.astype('uint8')),
                                Image.fromarray(G.astype('uint8')),
                                Image.fromarray(B.astype('uint8'))))
+    
+    total_time = time.time() - t_start
+    
+    if return_timing:
+        return imgC, total_time
     return imgC
 
 def apply_max_min_filter(image, n, filter_type='min'):
@@ -172,6 +180,8 @@ def create_D_matrix(rows, cols):
     return D
 
 def apply_frequency_filter(img_gray, H_filter_func, D0, n=None, return_timing=False):
+    import time
+    import cv2 as cv
     
     rows, cols = img_gray.shape
     

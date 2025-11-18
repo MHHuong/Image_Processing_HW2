@@ -133,6 +133,17 @@ class ImageApp:
         
         self.sliders['l'].configure(command=on_l_change)
         self.sliders['sigma'].configure(command=on_sigma_change)
+        
+        gauss_timing_frame = ctk.CTkFrame(gauss_frame, fg_color=("#1a1a1a", "#1a1a1a"))
+        gauss_timing_frame.grid(row=3, column=0, columnspan=3, sticky="ew", padx=8, pady=(8, 8))
+        
+        self.gauss_timing_label = ctk.CTkLabel(
+            gauss_timing_frame,
+            text="Thời gian: Chưa có dữ liệu",
+            font=("Consolas", 10),
+            justify="left"
+        )
+        self.gauss_timing_label.grid(row=0, column=0, sticky="w", padx=8, pady=4)
 
         median_sliders, median_frame = self.create_transformation_section(
             scroll_filter,
@@ -443,7 +454,16 @@ class ImageApp:
                 l_val = 1
             if l_val % 2 == 0:
                 l_val += 1
-            self.processed_image = ip.apply_gauss_filter(self.original_image, l_val, sigma_val)
+            
+            # Lấy kết quả và thời gian
+            self.processed_image, exec_time = ip.apply_gauss_filter(
+                self.original_image, l_val, sigma_val, return_timing=True
+            )
+            
+            # Hiển thị thời gian
+            timing_text = f"Thời gian: {exec_time*1000:.2f} ms"
+            self.gauss_timing_label.configure(text=timing_text)
+            
             self.update_canvas_bottom(self.processed_image)
         except Exception as e:
             print(e)
