@@ -134,8 +134,18 @@ class ImageApp:
         self.sliders['l'].configure(command=on_l_change)
         self.sliders['sigma'].configure(command=on_sigma_change)
         
+        # Button to apply Gauss filter
+        btn_apply_gauss = ctk.CTkButton(
+            gauss_frame,
+            text="Áp dụng Gauss Filter",
+            command=self.run_gauss_filter,
+            fg_color="#1f6aa5",
+            hover_color="#144870"
+        )
+        btn_apply_gauss.grid(row=3, column=0, columnspan=3, sticky="ew", padx=8, pady=(8, 4))
+        
         gauss_timing_frame = ctk.CTkFrame(gauss_frame, fg_color=("#1a1a1a", "#1a1a1a"))
-        gauss_timing_frame.grid(row=3, column=0, columnspan=3, sticky="ew", padx=8, pady=(8, 8))
+        gauss_timing_frame.grid(row=4, column=0, columnspan=3, sticky="ew", padx=8, pady=(4, 8))
         
         self.gauss_timing_label = ctk.CTkLabel(
             gauss_timing_frame,
@@ -434,15 +444,12 @@ class ImageApp:
                 new_sigma = sigma_max * 0.5
                 sigma_slider.set(new_sigma)
                 self.gauss_sigma_label.configure(text=f"{new_sigma:.2f}")
-            
-            if self.original_image:
-                self.run_gauss_filter()
         except Exception as e:
             print(e)
     
     def on_gauss_sigma_change(self, value):
-        if self.original_image:
-            self.run_gauss_filter()
+        # Chỉ cập nhật label, không chạy filter
+        pass
 
     def run_gauss_filter(self):
         if not self.original_image:
